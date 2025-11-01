@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: mongo-chat
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: chat_users
+
+  user-service:
+    image: node:18
+    working_dir: /usr/src/app
+    volumes:
+      - ./user-service:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/chat_users
+      - JWT_SECRET=devsecret
+    command: sh -c "npm install --silent && npm start"
+    depends_on:
+      - mongo
+
+  message-service:
+    image: node:18
+    working_dir: /usr/src/app
+    volumes:
+      - ./message-service:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/chat_messages
+    command: sh -c "npm install --silent && npm start"
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data: {}

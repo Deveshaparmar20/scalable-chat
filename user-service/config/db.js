@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect('mongodb://localhost:27017/chat_users', {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
+        const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/chat_users';
+
+        const conn = await mongoose.connect(mongoUri, {
+            // Mongoose 6+ uses new parser/topology by default; options kept for backward compatibility
         });
         
         console.log(`MongoDB Connected: ${conn.connection.host}`);

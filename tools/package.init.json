@@ -1,0 +1,11 @@
+{
+  "name": "rabbitmq-init",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node init_rabbitmq.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3"
+  }
+}

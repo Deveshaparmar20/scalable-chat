@@ -11,6 +11,29 @@ services:
     environment:
       MONGO_INITDB_DATABASE: chat_users
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq-init:
+    build:
+      context: .
+      dockerfile: tools/Dockerfile.init
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: "no"
+
   user-service:
     image: node:18
     working_dir: /usr/src/app
@@ -36,9 +59,61 @@ services:
       - "3002:3002"
     environment:
       - MONGO_URI=mongodb://mongo:27017/chat_messages
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     command: sh -c "npm install --silent && npm start"
     depends_on:
       - mongo
+      - rabbitmq-init
+
+  api-gateway:
+    build: ./api-gateway
+    working_dir: /usr/src/app
+    volumes:
+      - ./api-gateway:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    command: sh -c "npm install --silent && npm start"
+    depends_on:
+      - user-service
+      - message-service
+
+  chat-service:
+    build: ./chat-service
+    working_dir: /usr/src/app
+    volumes:
+      - ./chat-service:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    command: sh -c "npm install --silent && npm start"
+    depends_on:
+      - rabbitmq-init
+      - user-service
+      - message-service
+      - redis
+
+  redis:
+    image: redis:6-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  client-ui:
+    build: ./client-ui
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_SOCKET_URL=http://localhost:3003
+    depends_on:
+      - api-gateway
+      - chat-service
 
 volumes:
   mongo-data: {}

@@ -152,6 +152,40 @@ node socket_test.js
 - MongoDB data persisted to local volume
 - Service health endpoints for monitoring
 
+## Chat History Management
+
+### Viewing Chat History
+- Chat history is stored in MongoDB and cached in Redis
+- History is automatically loaded when joining a room
+- Messages are persisted through the message-service via RabbitMQ
+
+### Flushing Chat History
+To clear all chat messages and history:
+
+1. Using the flush script (recommended):
+   ```bash
+   cd tools
+   # Build the flush container
+   docker build -f Dockerfile.flush -t chat-flush .
+   # Run the flush operation
+   docker run --network scalable-chat_default chat-flush
+   ```
+   This will clear both MongoDB messages and Redis chat history.
+
+2. Manual cleanup (if needed):
+   ```bash
+   # Clear MongoDB messages
+   docker exec mongo-chat mongosh --eval "db.messages.deleteMany({})" chat_messages
+   # Clear Redis chat history
+   docker exec redis redis-cli KEYS "chat:history:*" | docker exec -i redis xargs redis-cli DEL
+   ```
+
+The flush operation is useful for:
+- Development and testing
+- Cleaning up test data
+- Maintaining system performance
+- Compliance with data retention policies
+
 ## Common Issues & Solutions
 
 1. **Services fail to start**

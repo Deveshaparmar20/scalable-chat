@@ -3,8 +3,8 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 # Copy package files
-COPY tools/package.init.json ./package.json
-COPY tools/init_rabbitmq.js ./init_rabbitmq.js
+COPY package.init.json ./package.json
+COPY init_rabbitmq.js ./init_rabbitmq.js
 
 # Install dependencies
 RUN npm install --production

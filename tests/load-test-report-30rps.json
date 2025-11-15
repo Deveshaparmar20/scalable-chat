@@ -1,0 +1,28 @@
+﻿{
+    "testConfig":  {
+                       "duration":  240,
+                       "targetRps":  30,
+                       "method":  "POST",
+                       "endpoint":  "http://localhost:3001/register"
+                   },
+    "timestamp":  "2025-11-15 14:06:20",
+    "results":  {
+                    "totalRequests":  2930,
+                    "successRate":  0,
+                    "statusCodes":  {
+
+                                    },
+                    "throughput":  356.12,
+                    "successfulRequests":  0,
+                    "actualDuration":  8.2275052,
+                    "failedRequests":  2931,
+                    "responseTimes":  {
+                                          "avg":  null,
+                                          "p50":  null,
+                                          "min":  null,
+                                          "max":  null,
+                                          "p95":  null,
+                                          "p99":  null
+                                      }
+                }
+}

@@ -1,0 +1,62 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Warmup"
+    - duration: 60
+      arrivalRate: 5
+      name: "Ramp up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 30
+      arrivalRate: 2
+      name: "Ramp down"
+
+scenarios:
+  - name: "User Registration and Authentication"
+    flow:
+      - post:
+          url: "/auth/register"
+          json:
+            email: "user-{{ $timestamp }}-{{ $randomNumber(1, 1000000) }}@test.local"
+            password: "TestPassword123!"
+          expect:
+            - statusCode: [200, 201, 400]
+          log: true
+      
+      - post:
+          url: "/auth/login"
+          json:
+            email: "user-{{ $timestamp }}-{{ $randomNumber(1, 1000000) }}@test.local"
+            password: "TestPassword123!"
+          capture:
+            json: "$.token"
+            as: "authToken"
+            strict: false
+          expect:
+            - statusCode: [200, 400]
+          log: true
+
+  - name: "Get Chat History"
+    weight: 30
+    flow:
+      - get:
+          url: "/messages/history/test-room"
+          expect:
+            - statusCode: [200, 404]
+          log: true
+
+  - name: "Health Checks"
+    weight: 20
+    flow:
+      - get:
+          url: "/auth/health"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/messages/health"
+          expect:
+            - statusCode: 200

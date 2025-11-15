@@ -1,0 +1,190 @@
+# Advanced Artillery Configuration with Multiple Test Scenarios
+
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Light warmup"
+    - duration: 60
+      arrivalRate: 5
+      name: "Ramp up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 5
+      name: "Ramp down"
+    - duration: 30
+      arrivalRate: 2
+      name: "Cool down"
+  
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      User-Agent: "Artillery-LoadTest/1.0"
+  
+  processor: "./processor.js"
+  
+  variables:
+    randomEmail: ""
+    randomPassword: ""
+    jwtToken: ""
+    userId: ""
+    username: ""
+
+scenarios:
+  - name: "Full User Journey - Chat Application"
+    weight: 60
+    flow:
+      # Generate random credentials
+      - function: "generateRandomEmail"
+      - function: "generateRandomPassword"
+      
+      # Phase 1: User Registration
+      - post:
+          url: "/auth/register"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+            username: "LoadTest-{{ $uuid }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+            strict: false
+          expect:
+            - statusCode: [200, 201]
+          log: true
+      
+      # Phase 2: User Login (if registration doesn't return token)
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+            strict: false
+          expect:
+            - statusCode: [200, 400]
+          log: true
+      
+      # Phase 3: Socket.IO Connection to Chat Service
+      - connect:
+          target: "http://localhost:3003"
+          namespace: "/"
+          auth:
+            token: "{{ jwtToken }}"
+      
+      # Phase 4: Join Chat Room
+      - emit:
+          channel: "joinRoom"
+          data: "load-test-room"
+      
+      # Phase 5: Send Messages Loop
+      - loop:
+          - emit:
+              channel: "sendMessage"
+              data:
+                roomId: "load-test-room"
+                userId: "user-{{ $uuid }}"
+                username: "LoadTester"
+                text: "Message {{ $loopCount }}: Load test at {{ $timestamp }}"
+                timestamp: "{{ $timestamp }}"
+          - think: 1
+          count: 10
+      
+      # Phase 6: Leave Room
+      - emit:
+          channel: "leaveRoom"
+          data: "load-test-room"
+      
+      # Phase 7: Disconnect
+      - disconnect
+
+  - name: "Rapid Message Burst Scenario"
+    weight: 25
+    flow:
+      - function: "generateRandomEmail"
+      - function: "generateRandomPassword"
+      
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+            strict: false
+          expect:
+            - statusCode: [200, 400]
+      
+      - connect:
+          target: "http://localhost:3003"
+          namespace: "/"
+          auth:
+            token: "{{ jwtToken }}"
+      
+      - emit:
+          channel: "joinRoom"
+          data: "burst-test-room"
+      
+      # Rapid fire messages with no delay
+      - loop:
+          - emit:
+              channel: "sendMessage"
+              data:
+                roomId: "burst-test-room"
+                userId: "burst-user"
+                text: "Burst message {{ $loopCount }}"
+          - think: 0.1
+          count: 50
+      
+      - disconnect
+
+  - name: "Authentication Stress Test"
+    weight: 15
+    flow:
+      - function: "generateRandomEmail"
+      - function: "generateRandomPassword"
+      
+      # Register
+      - post:
+          url: "/auth/register"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          expect:
+            - statusCode: [200, 201]
+      
+      # Immediate login
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+            strict: false
+          expect:
+            - statusCode: [200, 400]
+      
+      # Failed login attempt
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ randomEmail }}"
+            password: "wrongpassword"
+          expect:
+            - statusCode: [401, 400]
+
+before:
+  flow:
+    - think: 1
+
+after:
+  flow:
+    - think: 1

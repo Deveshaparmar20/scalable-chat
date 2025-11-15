@@ -1,0 +1,22 @@
+{
+  "name": "artillery-load-tests",
+  "version": "1.0.0",
+  "description": "Load testing suite for scalable-chat using Artillery.io",
+  "scripts": {
+    "test": "artillery run artillery-config.yml",
+    "test:quick": "artillery run --target http://localhost:3000 artillery-config.yml",
+    "install-engines": "npm install artillery-engine-socketio-v3"
+  },
+  "keywords": [
+    "load-testing",
+    "artillery",
+    "performance",
+    "chat",
+    "socket.io"
+  ],
+  "author": "SDE Project",
+  "license": "MIT",
+  "devDependencies": {
+    "artillery": "^1.7.9"
+  }
+}

@@ -17,6 +17,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    entrypoint: sh -c "chown -R rabbitmq:rabbitmq /var/lib/rabbitmq || true; docker-entrypoint.sh rabbitmq-server"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -25,8 +26,8 @@ services:
 
   rabbitmq-init:
     build:
-      context: .
-      dockerfile: tools/Dockerfile.init
+      context: ./tools
+      dockerfile: Dockerfile.init
     environment:
       - RABBITMQ_URL=amqp://rabbitmq:5672
     depends_on:

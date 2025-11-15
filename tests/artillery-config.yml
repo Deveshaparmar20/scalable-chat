@@ -1,0 +1,88 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Ramp up phase"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 5
+      name: "Ramp down phase"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  processor: "./processor.js"
+  variables:
+    randomEmail: ""
+    randomPassword: ""
+    jwtToken: ""
+    userId: ""
+
+scenarios:
+  - name: "Complete Chat Load Test Flow"
+    flow:
+      # Phase 1: Register a new random user
+      - post:
+          url: "/auth/register"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+          expect:
+            - statusCode: 201
+            - hasProperty: token
+          log: true
+      
+      # Phase 2: Login with the registered user
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ randomEmail }}"
+            password: "{{ randomPassword }}"
+          capture:
+            json: "$.token"
+            as: "jwtToken"
+          expect:
+            - statusCode: 200
+            - hasProperty: token
+          log: true
+      
+      # Phase 3: Connect to Socket.IO Chat Service
+      - connect:
+          target: "http://localhost:3003"
+          namespace: "/"
+          auth:
+            token: "{{ jwtToken }}"
+      
+      # Phase 4: Join a chat room
+      - emit:
+          channel: "joinRoom"
+          data: "load-test-room"
+          expect:
+            events:
+              - name: "connect"
+                timeout: 5000
+      
+      # Phase 5: Send multiple messages with 1 second delay
+      - loop:
+          - emit:
+              channel: "sendMessage"
+              data:
+                roomId: "load-test-room"
+                userId: "load-test-user-{{ $uuid }}"
+                username: "LoadTester"
+                text: "Message {{ $loopCount }}: This is a load test message with timestamp {{ $timestamp }}"
+                timestamp: "{{ $timestamp }}"
+              expect:
+                events:
+                  - name: "receiveMessage"
+                    timeout: 3000
+            - think: 1
+          count: 10
+      
+      # Cleanup: Disconnect from Socket.IO
+      - disconnect

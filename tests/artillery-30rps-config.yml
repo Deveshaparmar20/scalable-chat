@@ -1,0 +1,62 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 30
+      name: "Ramp-up to 30 req/sec"
+    - duration: 180
+      arrivalRate: 30
+      name: "Sustained 30 req/sec"
+    - duration: 60
+      arrivalRate: 15
+      name: "Ramp-down"
+  processor: "./processor.js"
+  variables:
+    host: "localhost"
+  defaults:
+    headers:
+      User-Agent: "Artillery Load Tester"
+      Content-Type: "application/json"
+  processor: "./processor.js"
+
+scenarios:
+  - name: "Heavy Load Test - 30 req/sec"
+    flow:
+      - post:
+          url: "/users/register"
+          json:
+            email: "{{ generateRandomEmail() }}"
+            password: "{{ generateRandomPassword() }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: [201, 400]
+      - think: 2
+      - post:
+          url: "/users/login"
+          json:
+            email: "{{ generateRandomEmail() }}"
+            password: "{{ generateRandomPassword() }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: [200, 401]
+      - think: 1
+      - get:
+          url: "/messages"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: [200, 401]
+      - think: 1
+      - post:
+          url: "/messages"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            content: "Heavy load test message from Artillery"
+            roomId: "test-room-30"
+          expect:
+            - statusCode: [201, 400, 401]
